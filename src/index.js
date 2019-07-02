@@ -4,8 +4,8 @@ const Command = require('common-bin');
 const { sync: resolveBin } = require('resolve-bin');
 const { join } = require('path');
 const { writeFileSync } = require('fs');
-const { endsWithArray, getFiles, parseSubOptions, getEslintExtensions } = require('./utils');
 const debug = require('debug')('magic-lint');
+const { endsWithArray, getFiles, parseSubOptions, getEslintExtensions } = require('./utils');
 
 class MainCommand extends Command {
   constructor(rawArgv) {
@@ -154,7 +154,7 @@ class MainCommand extends Command {
     writeFileSync(rcPath, JSON.stringify(lintstagedrc));
 
     try {
-      yield this.helper.forkNode(lintStaged, ['-c', rcPath], { cwd });
+      yield this.helper.forkNode(lintStaged, ['--config', rcPath, '--quiet'], { cwd });
     } catch (error) {
       debug(error);
       process.exit(error.code);
