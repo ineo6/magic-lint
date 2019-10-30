@@ -4,3 +4,4 @@ package-lock.json
 .lintstagedrc.json
 .stylelintcache
 npm-debug.log
+/.idea/
