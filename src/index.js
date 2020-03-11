@@ -133,19 +133,16 @@ class MainCommand extends Command {
       ...(prettier && {
         '*.{js,jsx,ts,tsx,less,scss,sass,css}': [
           `${this.prettier} --write ${parseSubOptions(prettier).join(' ')}`,
-          'git add',
         ],
       }),
       ...(eslint && {
         [`*{${eslintExtensions.join(',')}}`]: [
           `${this.eslint} ${commonOpts} ${parseSubOptions(eslint).join(' ')}`,
-          'git add',
         ],
       }),
       ...(stylelint && {
         '*.{less,scss,sass,css}': [
           `${this.stylelint} ${commonOpts} ${parseSubOptions(stylelint).join(' ')}`,
-          'git add',
         ],
       }),
     };
