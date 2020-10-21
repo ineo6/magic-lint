@@ -70,14 +70,22 @@ class MainCommand extends Command {
       // eslint can be disable
       if (eslint) {
         const eslintOptions = parseSubOptions(eslint);
+
         const eslintExtensions = getEslintExtensions(eslintOptions);
+
+        const formatOpt = ['--format', require.resolve('eslint-formatter-friendly')];
+
+        if (eslintOptions.indexOf('--format') === -1) {
+          eslintOptions.push(...formatOpt)
+        }
+
         // TODO, 效率可能不高, 先实现再验证
         const files = allFiles.filter(item => endsWithArray(item, eslintExtensions));
         if (files.length > 0) {
           jobs.push(
             this.helper.forkNode(
               this.eslint,
-              [...commonOpts, ...parseSubOptions(eslint), ...files],
+              [...commonOpts, ...eslintOptions, ...files],
               {
                 cwd,
               },
@@ -128,6 +136,12 @@ class MainCommand extends Command {
     const eslintOptions = parseSubOptions(eslint);
     const eslintExtensions = getEslintExtensions(eslintOptions);
 
+    const formatOpt = ['--format', require.resolve('eslint-formatter-friendly')];
+
+    if (eslintOptions.indexOf('--format') === -1) {
+      eslintOptions.push(...formatOpt)
+    }
+
     // generate dynamic configuration
     const lintstagedrc = {
       ...(prettier && {
@@ -137,7 +151,7 @@ class MainCommand extends Command {
       }),
       ...(eslint && {
         [`*{${eslintExtensions.join(',')}}`]: [
-          `${this.eslint} ${commonOpts} ${parseSubOptions(eslint).join(' ')}`,
+          `${this.eslint} ${commonOpts} ${eslintOptions.join(' ')}`,
         ],
       }),
       ...(stylelint && {
