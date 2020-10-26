@@ -73,7 +73,7 @@ class MainCommand extends Command {
 
         const eslintExtensions = getEslintExtensions(eslintOptions);
 
-        const formatOpt = ['--format', require.resolve('eslint-formatter-friendly')];
+        const formatOpt = ['--format', require.resolve('eslint-formatter-pretty')];
 
         if (eslintOptions.indexOf('--format') === -1) {
           eslintOptions.push(...formatOpt)
@@ -136,7 +136,7 @@ class MainCommand extends Command {
     const eslintOptions = parseSubOptions(eslint);
     const eslintExtensions = getEslintExtensions(eslintOptions);
 
-    const formatOpt = ['--format', require.resolve('eslint-formatter-friendly')];
+    const formatOpt = ['--format', require.resolve('eslint-formatter-pretty')];
 
     if (eslintOptions.indexOf('--format') === -1) {
       eslintOptions.push(...formatOpt)

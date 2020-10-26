@@ -4,7 +4,7 @@
 
 内部集成了 eslint，stylelint，prettier，lint-staged，husky，commitlint等，简化项目初始化配置流程。
 
-注意！！！需要自己在项目中配置`.eslintrc`、`.stylelintrc`、`.prettierrc`，`commitlint`配置已内置。
+注意！！！需要自己在项目中配置`.eslintrc`、`.stylelintrc`、`.prettierrc`。
 
 ## 安装
 

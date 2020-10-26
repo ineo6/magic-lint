@@ -22,28 +22,23 @@
     "precommit": "node ./bin/magic-lint --staged --eslint --prettier --fix bin/ src/"
   },
   "dependencies": {
-    "@commitlint/cli": "^8.0.0",
-    "@commitlint/config-conventional": "^8.0.0",
-    "@typescript-eslint/eslint-plugin": "^2.23.0",
-    "@typescript-eslint/parser": "^2.23.0",
+    "@commitlint/cli": "^11.0.0",
+    "@commitlint/config-conventional": "^11.0.0",
+    "@typescript-eslint/eslint-plugin": "4.5.0",
+    "@typescript-eslint/parser": "4.5.0",
     "common-bin": "2.8.3",
     "debug": "^4.1.1",
-    "eslint": "^6.8.0",
-    "eslint-config-airbnb": "^18.0.1",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-airbnb-typescript": "^7.0.0",
-    "eslint-config-prettier": "^6.10.0",
-    "eslint-formatter-friendly": "^7.0.0",
+    "eslint": "7.12.0",
+    "eslint-config-airbnb": "18.2.0",
+    "eslint-config-airbnb-base": "14.2.0",
+    "eslint-config-prettier": "6.14.0",
     "eslint-formatter-pretty": "^3.0.1",
-    "eslint-plugin-babel": "^5.3.0",
-    "eslint-plugin-compat": "^3.1.1",
-    "eslint-plugin-eslint-comments": "^3.1.1",
-    "eslint-plugin-import": "^2.17.3",
-    "eslint-plugin-jsx-a11y": "^6.2.0",
-    "eslint-plugin-promise": "^4.1.1",
-    "eslint-plugin-react": "^7.12.4",
+    "eslint-plugin-eslint-comments": "3.2.0",
+    "eslint-plugin-import": "2.22.1",
+    "eslint-plugin-jsx-a11y": "6.4.0",
+    "eslint-plugin-promise": "4.2.1",
     "globby": "^11.0.0",
-    "husky": "^4.2.3",
+    "husky": "4.3.0",
     "ignore": "^5.1.2",
     "lint-staged": "^10.0.8",
     "prettier": "^1.16.4",
@@ -57,11 +52,5 @@
     "stylelint-declaration-block-no-ignored-properties": "^2.1.0",
     "stylelint-order": "^4.0.0"
   },
-  "devDependencies": {
-    "babel-eslint": "^10.0.2",
-    "typescript": "^3.5.2"
-  },
-  "yargs": {
-    "camel-case-expansion": false
-  }
+  "devDependencies": {}
 }
