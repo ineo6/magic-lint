@@ -19,36 +19,31 @@ function getIgnores(cwd) {
   globby
     .sync('**/.eslintignore', {
       ignore: ['**/node_modules/**'],
-      cwd,
+      cwd
     })
-    .forEach(file => {
+    .forEach((file) => {
       const result = fs
         .readFileSync(file, 'utf8')
         .split(/\r?\n/)
         .filter(Boolean)
-        .filter(line => line.charAt(0) !== '#');
+        .filter((line) => line.charAt(0) !== '#');
       ignores = ignores.concat(result);
     });
   return ignores;
 }
 
 module.exports = {
-  endsWithArray: (str, arr) => {
-    // like /.js$|.jsx$/.test('aaa.js')
-    return new RegExp(`${arr.join('$|')}$`).test(str);
-  },
+  // like /.js$|.jsx$/.test('aaa.js')
+  endsWithArray: (str, arr) => new RegExp(`${arr.join('$|')}$`).test(str),
   getFiles: (patterns, cwd) => {
     const result = globby
       .sync(patterns, {
         gitignore: true,
         ignore: ['**/node_modules/**', '.git'],
         onlyFiles: true,
-        dot: true,
+        dot: true
       })
-      .map(item => {
-        // ignore 包必须使用相对路径
-        return path.relative(cwd, item);
-      });
+      .map((item) => path.relative(cwd, item)); // ignore 包必须使用相对路径
 
     return ignore()
       .add(getIgnores(cwd))
@@ -59,29 +54,29 @@ module.exports = {
    * @param {(object|array)} option { debug: true } | [ true, { debug: true } ]
    * @return {array} []
    */
-  parseSubOptions: option => {
+  parseSubOptions: (option) => {
     if (Array.isArray(option)) {
       return option
-        .filter(item => typeof item === 'object')
+        .filter((item) => typeof item === 'object')
         .reduce((result, item) => {
           const key = Object.keys(item)[0];
           transformOpts(result, item, key);
           return result;
         }, []);
-    } else if (typeof option === 'object') {
+    } if (typeof option === 'object') {
       const result = [];
-      Object.keys(option).forEach(key => {
+      Object.keys(option).forEach((key) => {
         transformOpts(result, option, key);
       });
       return result;
     }
     return [];
   },
-  getEslintExtensions: options => {
+  getEslintExtensions: (options) => {
     const index = options.indexOf('--ext');
     if (index !== -1) {
       return options[index + 1].split(',');
     }
     return ['.js', '.jsx'];
-  },
+  }
 };
