@@ -31,6 +31,7 @@
     "eslint": "7.12.0",
     "eslint-config-airbnb": "18.2.0",
     "eslint-config-airbnb-base": "14.2.0",
+    "eslint-config-magic": "^2.0.0",
     "eslint-config-prettier": "6.14.0",
     "eslint-formatter-pretty": "^3.0.1",
     "eslint-plugin-eslint-comments": "3.2.0",
@@ -50,7 +51,21 @@
     "stylelint-config-rational-order": "^0.1.2",
     "stylelint-config-standard": "^20.0.0",
     "stylelint-declaration-block-no-ignored-properties": "^2.1.0",
-    "stylelint-order": "^4.0.0"
+    "stylelint-order": "^4.0.0",
+    "typescript": "^4.0.5"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "babel-eslint": "10.1.0",
+    "eslint": "7.12.0",
+    "eslint-config-airbnb": "18.2.0",
+    "eslint-config-airbnb-base": "14.2.0",
+    "eslint-plugin-eslint-comments": "3.2.0",
+    "eslint-plugin-import": "2.22.1",
+    "eslint-plugin-jsx-a11y": "6.4.0",
+    "eslint-plugin-promise": "4.2.1",
+    "eslint-plugin-react": "7.21.5"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
 }
