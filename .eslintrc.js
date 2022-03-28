@@ -1,7 +1,5 @@
-'use strict';
-
 module.exports = {
-  extends: ['magic/node'],
+  extends: ['magic'],
   globals: {},
   rules: {}
 };

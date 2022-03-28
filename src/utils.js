@@ -1,11 +1,9 @@
-'use strict';
-
 const globby = require('globby');
 const fs = require('fs');
 const ignore = require('ignore');
 const path = require('path');
 
-function transformOpts(result, item, key) {
+function transformOpts (result, item, key) {
   result.push(`--${key}`);
   if (typeof item[key] !== 'boolean') {
     result.push(item[key]);
@@ -13,7 +11,7 @@ function transformOpts(result, item, key) {
 }
 
 // 获取其他需要忽略的规则
-function getIgnores(cwd) {
+function getIgnores (cwd) {
   let ignores = [];
   // 获取 eslintignore 忽略规则
   globby
@@ -63,11 +61,13 @@ module.exports = {
           transformOpts(result, item, key);
           return result;
         }, []);
-    } if (typeof option === 'object') {
+    }
+    if (typeof option === 'object') {
       const result = [];
-      Object.keys(option).forEach((key) => {
-        transformOpts(result, option, key);
-      });
+      Object.keys(option)
+        .forEach((key) => {
+          transformOpts(result, option, key);
+        });
       return result;
     }
     return [];
@@ -78,5 +78,12 @@ module.exports = {
       return options[index + 1].split(',');
     }
     return ['.js', '.jsx'];
+  },
+  getPrettierExtensions: (options) => {
+    const index = options.indexOf('--ext');
+    if (index !== -1) {
+      return options[index + 1].split(',');
+    }
+    return ['.js', '.jsx', '.ts', '.tsx', '.css', '.less', '.scss', '.sass'];
   }
 };

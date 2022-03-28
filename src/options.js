@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   commit: {
     description: 'only check commit msg',

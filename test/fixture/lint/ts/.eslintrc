@@ -1,0 +1,9 @@
+{
+  "extends": [
+    "magic",
+    "magic/typescript"
+  ],
+  "rules": {
+    "indent": "error"
+  }
+}
