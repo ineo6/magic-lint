@@ -4,7 +4,7 @@
 
 内部集成了 `eslint`，`stylelint`，`prettier`，`lint-staged`，`commitlint`等，简化项目初始化配置流程。
 
-注意！！！需要自己在项目中配置`.eslintrc`、`.stylelintrc`、`.prettierrc`。
+注意！！！需要自己在项目中配置`.eslintrc`、`.stylelintrc`、`.prettierrc`、`commitlint.config.js`。
 
 ## 安装
 
@@ -43,7 +43,7 @@ Options:
 
 ## 使用教程
 
-以`husky`最新版（v7以及以上）为例：
+以`husky`最新版（v7及以上）为例：
 
 ### 1. 初始化`husky`
 
