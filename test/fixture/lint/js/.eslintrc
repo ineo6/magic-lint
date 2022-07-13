@@ -1,0 +1,6 @@
+{
+  "extends": "magic",
+  "rules": {
+    "no-unused-vars": 2
+  }
+}

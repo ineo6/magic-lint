@@ -1,5 +1,3 @@
-'use strict';
-
 module.exports = {
   commit: {
     description: 'only check commit msg',
@@ -46,5 +44,10 @@ module.exports = {
   cwd: {
     description: 'current working directory',
     default: process.cwd(),
+  },
+  harmony: {
+    description: 'work as prettier-eslint',
+    boolean: true,
+    default: true,
   },
 };

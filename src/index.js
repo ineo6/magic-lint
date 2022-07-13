@@ -1,11 +1,16 @@
-'use strict';
-
 const Command = require('common-bin');
 const { sync: resolveBin } = require('resolve-bin');
 const { join } = require('path');
-const { writeFileSync } = require('fs');
+let { writeFileSync } = require('fs');
 const debug = require('debug')('magic-lint');
-const { endsWithArray, getFiles, parseSubOptions, getEslintExtensions } = require('./utils');
+const {
+  getPrettierExtensions,
+  getMixedExtAndRest,
+  endsWithArray,
+  getFiles,
+  parseSubOptions,
+  getEslintExtensions,
+} = require('./utils');
 
 class MainCommand extends Command {
   constructor(rawArgv) {
@@ -15,13 +20,14 @@ class MainCommand extends Command {
     this.eslint = resolveBin('eslint');
     this.stylelint = resolveBin('stylelint');
     this.prettier = resolveBin('prettier');
+    this.commitlintBin = resolveBin('@commitlint/cli', { executable: 'commitlint' });
 
     this.usage = `
       Usage: magic-lint [options] file.js [file.js] [dir]
         magic-lint --commit
         magic-lint --prettier --stylelint src/
         magic-lint --staged --prettier --stylelint
-        magic-lint --eslint.debug --tslint.force -s.formatter=json -p.no-semi src/ test/
+        magic-lint --eslint.debug -s.formatter=json -p.no-semi src/ test/
     `;
   }
 
@@ -29,33 +35,26 @@ class MainCommand extends Command {
     const { staged, commit } = context.argv;
 
     if (commit) {
-      // commit-msg
       yield this.commitlint(context.argv);
+    } else if (!staged) {
+      yield this.lint(context.argv);
     } else {
-      if (!staged) {
-        yield this.lint(context.argv);
-      } else {
-        yield this.lintStaged(context.argv);
-      }
+      yield this.lintStaged(context.argv);
     }
   }
 
-  *commitlint({ cwd }) {
-    const commitlint = resolveBin('@commitlint/cli', { executable: 'commitlint' });
-
+  *commitlint({ commit, cwd }) {
     try {
-      yield this.helper.forkNode(
-        commitlint,
-        ['-E', 'HUSKY_GIT_PARAMS', '-g', join(__dirname, '../config', 'commitlint.config.js')],
-        { cwd },
-      );
+      const commitlintOptions = parseSubOptions(commit);
+
+      yield this.helper.forkNode(this.commitlintBin, [...commitlintOptions], { cwd });
     } catch (error) {
       debug(error);
       process.exit(error.code);
     }
   }
 
-  *lint({ _, eslint, stylelint, prettier, fix, quiet, cwd }) {
+  *lint({ _, eslint, stylelint, prettier, fix, quiet, cwd, harmony }) {
     if (_.length === 0) {
       console.log('please specify a path to lint');
       return;
@@ -67,51 +66,52 @@ class MainCommand extends Command {
 
     try {
       const jobs = [];
-      // eslint can be disable
+
       if (eslint) {
         const eslintOptions = parseSubOptions(eslint);
+
         const eslintExtensions = getEslintExtensions(eslintOptions);
-        // TODO, 效率可能不高, 先实现再验证
-        const files = allFiles.filter(item => endsWithArray(item, eslintExtensions));
+
+        const formatOpt = ['--format', require.resolve('eslint-formatter-pretty')];
+
+        if (eslintOptions.indexOf('--format') >= 0) {
+          eslintOptions.push(...formatOpt);
+        }
+
+        const files = allFiles.filter((item) => endsWithArray(item, eslintExtensions));
         if (files.length > 0) {
           jobs.push(
-            this.helper.forkNode(
-              this.eslint,
-              [...commonOpts, ...parseSubOptions(eslint), ...files],
-              {
-                cwd,
-              },
-            ),
+            this.helper.forkNode(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
+              cwd,
+            }),
           );
         }
       }
 
       if (stylelint) {
-        const files = allFiles.filter(item =>
-          endsWithArray(item, ['.css', '.less', '.scss', '.sass']),
-        );
+        const files = allFiles.filter((item) => endsWithArray(item, ['.css', '.less', '.scss', '.sass']));
 
         if (files.length > 0) {
           jobs.push(
-            this.helper.forkNode(
-              this.stylelint,
-              [...commonOpts, ...parseSubOptions(stylelint), ...files],
-              {
-                cwd,
-              },
-            ),
+            this.helper.forkNode(this.stylelint, [...commonOpts, ...parseSubOptions(stylelint), ...files], {
+              cwd,
+            }),
           );
         }
       }
 
       if (prettier) {
-        const files = allFiles.filter(item =>
-          endsWithArray(item, ['.js', '.jsx', '.ts', '.tsx', '.css', '.less', '.scss', '.sass']),
-        );
+        const prettierOptions = parseSubOptions(prettier);
+
+        const prettierExtensions = getPrettierExtensions(prettierOptions);
+
+        const files = allFiles.filter((item) => endsWithArray(item, prettierExtensions));
         if (files.length > 0) {
-          jobs.push(
-            this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }),
-          );
+          if (harmony) {
+            jobs.unshift(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          } else {
+            jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          }
         }
       }
       yield Promise.all(jobs);
@@ -121,29 +121,50 @@ class MainCommand extends Command {
     }
   }
 
-  *lintStaged({ prettier, eslint, stylelint, fix, quiet, cwd }) {
+  *lintStaged({ prettier, eslint, stylelint, fix, quiet, cwd, harmony }) {
     const lintStaged = resolveBin('lint-staged');
     const commonOpts = `${fix ? '--fix' : ''} ${quiet ? '--quiet' : ''}`;
 
     const eslintOptions = parseSubOptions(eslint);
     const eslintExtensions = getEslintExtensions(eslintOptions);
 
-    // generate dynamic configuration
+    const prettierOptions = parseSubOptions(prettier);
+    const prettierExtensions = getPrettierExtensions(prettierOptions);
+
+    const formatOpt = ['--format', require.resolve('eslint-formatter-pretty')];
+
+    if (eslintOptions.indexOf('--format') >= 0) {
+      eslintOptions.push(...formatOpt);
+    }
+
+    const eslintProcessor = `${this.eslint} ${commonOpts} ${eslintOptions.join(' ')}`;
+    const prettierProcessor = `${this.prettier} --write ${prettierOptions.join(' ')}`;
+
+    const { mixed, eslintRstExt, prettierRstExt } = getMixedExtAndRest(eslintExtensions, prettierExtensions);
+
+    const mixedProcessor = [eslintProcessor];
+
+    if (harmony) {
+      mixedProcessor.unshift(prettierProcessor);
+    } else {
+      mixedProcessor.push(prettierProcessor);
+    }
+
     const lintstagedrc = {
-      ...(prettier && {
-        '*.{js,jsx,ts,tsx,less,scss,sass,css}': [
-          `${this.prettier} --write ${parseSubOptions(prettier).join(' ')}`,
-        ],
-      }),
-      ...(eslint && {
-        [`*{${eslintExtensions.join(',')}}`]: [
-          `${this.eslint} ${commonOpts} ${parseSubOptions(eslint).join(' ')}`,
-        ],
-      }),
+      ...(prettier &&
+        eslint && {
+          [`*{${mixed.join(',')}}`]: mixedProcessor,
+        }),
+      ...(prettier &&
+        prettierRstExt.length && {
+          [`*{${prettierRstExt.join(',')}}`]: [prettierProcessor],
+        }),
+      ...(eslint &&
+        eslintRstExt.length && {
+          [`*{${eslintRstExt.join(',')}}`]: [eslintProcessor],
+        }),
       ...(stylelint && {
-        '*.{less,scss,sass,css}': [
-          `${this.stylelint} ${commonOpts} ${parseSubOptions(stylelint).join(' ')}`,
-        ],
+        '*.{less,scss,sass,css}': [`${this.stylelint} ${commonOpts} ${parseSubOptions(stylelint).join(' ')}`],
       }),
     };
 

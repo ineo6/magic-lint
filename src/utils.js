@@ -1,5 +1,3 @@
-'use strict';
-
 const globby = require('globby');
 const fs = require('fs');
 const ignore = require('ignore');
@@ -21,22 +19,40 @@ function getIgnores(cwd) {
       ignore: ['**/node_modules/**'],
       cwd,
     })
-    .forEach(file => {
+    .forEach((file) => {
       const result = fs
         .readFileSync(file, 'utf8')
         .split(/\r?\n/)
         .filter(Boolean)
-        .filter(line => line.charAt(0) !== '#');
+        .filter((line) => line.charAt(0) !== '#');
       ignores = ignores.concat(result);
     });
   return ignores;
 }
 
+// 获取交集，以及各自的补集
+function getMixedExtAndRest(eslintExt, prettierExt) {
+  const mixed = [];
+
+  eslintExt.forEach((e1) => {
+    if (prettierExt.includes(e1)) {
+      mixed.push(e1);
+    }
+  });
+
+  const eslintRstExt = eslintExt.filter((e) => !mixed.includes(e));
+  const prettierRstExt = prettierExt.filter((e) => !mixed.includes(e));
+
+  return {
+    mixed,
+    eslintRstExt,
+    prettierRstExt,
+  };
+}
+
 module.exports = {
-  endsWithArray: (str, arr) => {
-    // like /.js$|.jsx$/.test('aaa.js')
-    return new RegExp(`${arr.join('$|')}$`).test(str);
-  },
+  // like /.js$|.jsx$/.test('aaa.js')
+  endsWithArray: (str, arr) => new RegExp(`${arr.join('$|')}$`).test(str),
   getFiles: (patterns, cwd) => {
     const result = globby
       .sync(patterns, {
@@ -45,10 +61,7 @@ module.exports = {
         onlyFiles: true,
         dot: true,
       })
-      .map(item => {
-        // ignore 包必须使用相对路径
-        return path.relative(cwd, item);
-      });
+      .map((item) => path.relative(cwd, item)); // ignore 包必须使用相对路径
 
     return ignore()
       .add(getIgnores(cwd))
@@ -59,29 +72,38 @@ module.exports = {
    * @param {(object|array)} option { debug: true } | [ true, { debug: true } ]
    * @return {array} []
    */
-  parseSubOptions: option => {
+  parseSubOptions: (option) => {
     if (Array.isArray(option)) {
       return option
-        .filter(item => typeof item === 'object')
+        .filter((item) => typeof item === 'object')
         .reduce((result, item) => {
           const key = Object.keys(item)[0];
           transformOpts(result, item, key);
           return result;
         }, []);
-    } else if (typeof option === 'object') {
+    }
+    if (typeof option === 'object') {
       const result = [];
-      Object.keys(option).forEach(key => {
+      Object.keys(option).forEach((key) => {
         transformOpts(result, option, key);
       });
       return result;
     }
     return [];
   },
-  getEslintExtensions: options => {
+  getEslintExtensions: (options) => {
     const index = options.indexOf('--ext');
     if (index !== -1) {
       return options[index + 1].split(',');
     }
-    return ['.js', '.jsx'];
+    return ['.js', '.jsx', '.ts', '.tsx', '.vue'];
   },
+  getPrettierExtensions: (options) => {
+    const index = options.indexOf('--ext');
+    if (index !== -1) {
+      return options[index + 1].split(',');
+    }
+    return ['.js', '.jsx', '.ts', '.tsx', '.vue', '.css', '.less', '.scss', '.sass'];
+  },
+  getMixedExtAndRest,
 };
