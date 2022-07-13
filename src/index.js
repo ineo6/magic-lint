@@ -1,10 +1,16 @@
 const Command = require('common-bin');
-const { getPrettierExtensions } = require('./utils');
 const { sync: resolveBin } = require('resolve-bin');
 const { join } = require('path');
 let { writeFileSync } = require('fs');
 const debug = require('debug')('magic-lint');
-const { endsWithArray, getFiles, parseSubOptions, getEslintExtensions } = require('./utils');
+const {
+  getPrettierExtensions,
+  getMixedExtAndRest,
+  endsWithArray,
+  getFiles,
+  parseSubOptions,
+  getEslintExtensions,
+} = require('./utils');
 
 class MainCommand extends Command {
   constructor(rawArgv) {
@@ -21,7 +27,7 @@ class MainCommand extends Command {
         magic-lint --commit
         magic-lint --prettier --stylelint src/
         magic-lint --staged --prettier --stylelint
-        magic-lint --eslint.debug --tslint.force -s.formatter=json -p.no-semi src/ test/
+        magic-lint --eslint.debug -s.formatter=json -p.no-semi src/ test/
     `;
   }
 
@@ -48,7 +54,7 @@ class MainCommand extends Command {
     }
   }
 
-  *lint({ _, eslint, stylelint, prettier, fix, quiet, cwd }) {
+  *lint({ _, eslint, stylelint, prettier, fix, quiet, cwd, harmony }) {
     if (_.length === 0) {
       console.log('please specify a path to lint');
       return;
@@ -101,7 +107,11 @@ class MainCommand extends Command {
 
         const files = allFiles.filter((item) => endsWithArray(item, prettierExtensions));
         if (files.length > 0) {
-          jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          if (harmony) {
+            jobs.unshift(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          } else {
+            jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          }
         }
       }
       yield Promise.all(jobs);
@@ -111,7 +121,7 @@ class MainCommand extends Command {
     }
   }
 
-  *lintStaged({ prettier, eslint, stylelint, fix, quiet, cwd }) {
+  *lintStaged({ prettier, eslint, stylelint, fix, quiet, cwd, harmony }) {
     const lintStaged = resolveBin('lint-staged');
     const commonOpts = `${fix ? '--fix' : ''} ${quiet ? '--quiet' : ''}`;
 
@@ -127,13 +137,32 @@ class MainCommand extends Command {
       eslintOptions.push(...formatOpt);
     }
 
+    const eslintProcessor = `${this.eslint} ${commonOpts} ${eslintOptions.join(' ')}`;
+    const prettierProcessor = `${this.prettier} --write ${prettierOptions.join(' ')}`;
+
+    const { mixed, eslintRstExt, prettierRstExt } = getMixedExtAndRest(eslintExtensions, prettierExtensions);
+
+    const mixedProcessor = [eslintProcessor];
+
+    if (harmony) {
+      mixedProcessor.unshift(prettierProcessor);
+    } else {
+      mixedProcessor.push(prettierProcessor);
+    }
+
     const lintstagedrc = {
-      ...(prettier && {
-        [`*{${prettierExtensions.join(',')}}`]: [`${this.prettier} --write ${prettierOptions.join(' ')}`],
-      }),
-      ...(eslint && {
-        [`*{${eslintExtensions.join(',')}}`]: [`${this.eslint} ${commonOpts} ${eslintOptions.join(' ')}`],
-      }),
+      ...(prettier &&
+        eslint && {
+          [`*{${mixed.join(',')}}`]: mixedProcessor,
+        }),
+      ...(prettier &&
+        prettierRstExt.length && {
+          [`*{${prettierRstExt.join(',')}}`]: [prettierProcessor],
+        }),
+      ...(eslint &&
+        eslintRstExt.length && {
+          [`*{${eslintRstExt.join(',')}}`]: [eslintProcessor],
+        }),
       ...(stylelint && {
         '*.{less,scss,sass,css}': [`${this.stylelint} ${commonOpts} ${parseSubOptions(stylelint).join(' ')}`],
       }),

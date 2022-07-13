@@ -39,7 +39,16 @@ Options:
 --fix, -f                 fix all eslint and stylelint auto-fixable problems  [boolean] [default: false]
 --quiet, -q               report errors only                                  [boolean] [default: false]
 --cwd                     current working directory                           [default: process.cwd()]
+--harmony                 work as prettier-eslint                             [boolean] [default: true]
 ```
+
+### 参数说明
+
+#### harmony
+
+和谐模式，目的是处理`prettier`和`eslint`的冲突问题，会和`prettier-eslint`一样，先用`prettier`处理，再用`eslint`处理。
+
+默认开启。
 
 ## 使用教程
 

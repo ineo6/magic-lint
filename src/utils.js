@@ -3,7 +3,7 @@ const fs = require('fs');
 const ignore = require('ignore');
 const path = require('path');
 
-function transformOpts (result, item, key) {
+function transformOpts(result, item, key) {
   result.push(`--${key}`);
   if (typeof item[key] !== 'boolean') {
     result.push(item[key]);
@@ -11,13 +11,13 @@ function transformOpts (result, item, key) {
 }
 
 // 获取其他需要忽略的规则
-function getIgnores (cwd) {
+function getIgnores(cwd) {
   let ignores = [];
   // 获取 eslintignore 忽略规则
   globby
     .sync('**/.eslintignore', {
       ignore: ['**/node_modules/**'],
-      cwd
+      cwd,
     })
     .forEach((file) => {
       const result = fs
@@ -30,6 +30,26 @@ function getIgnores (cwd) {
   return ignores;
 }
 
+// 获取交集，以及各自的补集
+function getMixedExtAndRest(eslintExt, prettierExt) {
+  const mixed = [];
+
+  eslintExt.forEach((e1) => {
+    if (prettierExt.includes(e1)) {
+      mixed.push(e1);
+    }
+  });
+
+  const eslintRstExt = eslintExt.filter((e) => !mixed.includes(e));
+  const prettierRstExt = prettierExt.filter((e) => !mixed.includes(e));
+
+  return {
+    mixed,
+    eslintRstExt,
+    prettierRstExt,
+  };
+}
+
 module.exports = {
   // like /.js$|.jsx$/.test('aaa.js')
   endsWithArray: (str, arr) => new RegExp(`${arr.join('$|')}$`).test(str),
@@ -39,7 +59,7 @@ module.exports = {
         gitignore: true,
         ignore: ['**/node_modules/**', '.git'],
         onlyFiles: true,
-        dot: true
+        dot: true,
       })
       .map((item) => path.relative(cwd, item)); // ignore 包必须使用相对路径
 
@@ -64,10 +84,9 @@ module.exports = {
     }
     if (typeof option === 'object') {
       const result = [];
-      Object.keys(option)
-        .forEach((key) => {
-          transformOpts(result, option, key);
-        });
+      Object.keys(option).forEach((key) => {
+        transformOpts(result, option, key);
+      });
       return result;
     }
     return [];
@@ -77,13 +96,14 @@ module.exports = {
     if (index !== -1) {
       return options[index + 1].split(',');
     }
-    return ['.js', '.jsx'];
+    return ['.js', '.jsx', '.ts', '.tsx', '.vue'];
   },
   getPrettierExtensions: (options) => {
     const index = options.indexOf('--ext');
     if (index !== -1) {
       return options[index + 1].split(',');
     }
-    return ['.js', '.jsx', '.ts', '.tsx', '.css', '.less', '.scss', '.sass'];
-  }
+    return ['.js', '.jsx', '.ts', '.tsx', '.vue', '.css', '.less', '.scss', '.sass'];
+  },
+  getMixedExtAndRest,
 };
