@@ -2,6 +2,7 @@ const globby = require('globby');
 const fs = require('fs');
 const ignore = require('ignore');
 const path = require('path');
+const execSync = require('child_process').execSync;
 
 function transformOpts(result, item, key) {
   result.push(`--${key}`);
@@ -50,6 +51,16 @@ function getMixedExtAndRest(eslintExt, prettierExt) {
   };
 }
 
+function getBranchDiffFiles(branchSource, branchTarget, cwd) {
+  const GITDIFF = `git diff ${branchTarget} ${branchSource}  --diff-filter=ACMR --name-only`;
+
+  const diff = execSync(GITDIFF).toString();
+
+  const changedPaths = diff.split('\n').filter((path) => path.length > 0);
+
+  return ignore().add(getIgnores(cwd)).filter(changedPaths);
+}
+
 module.exports = {
   // like /.js$|.jsx$/.test('aaa.js')
   endsWithArray: (str, arr) => new RegExp(`${arr.join('$|')}$`).test(str),
@@ -63,10 +74,9 @@ module.exports = {
       })
       .map((item) => path.relative(cwd, item)); // ignore 包必须使用相对路径
 
-    return ignore()
-      .add(getIgnores(cwd))
-      .filter(result);
+    return ignore().add(getIgnores(cwd)).filter(result);
   },
+  getBranchDiffFiles,
   /**
    * support sub option like: --eslint.debug --eslint.no-ignore
    * @param {(object|array)} option { debug: true } | [ true, { debug: true } ]

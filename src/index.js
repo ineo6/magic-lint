@@ -10,6 +10,7 @@ const {
   getFiles,
   parseSubOptions,
   getEslintExtensions,
+  getBranchDiffFiles,
 } = require('./utils');
 
 class MainCommand extends Command {
@@ -27,15 +28,18 @@ class MainCommand extends Command {
         magic-lint --commit
         magic-lint --prettier --stylelint src/
         magic-lint --staged --prettier --stylelint
+        magic-lint --merge-diff --source-sha=79697969644b1b73d10eb1bdd4b954f1260735ff  --target-sha=master --eslint --prettier --harmony --prettier.check
         magic-lint --eslint.debug -s.formatter=json -p.no-semi src/ test/
     `;
   }
 
   *run(context) {
-    const { staged, commit } = context.argv;
+    const { staged, commit, mergeDiff } = context.argv;
 
     if (commit) {
       yield this.commitlint(context.argv);
+    } else if (mergeDiff) {
+      yield this.lintBranch(context.argv);
     } else if (!staged) {
       yield this.lint(context.argv);
     } else {
@@ -114,7 +118,7 @@ class MainCommand extends Command {
           }
         }
       }
-      yield Promise.all(jobs);
+      yield Promise.allSettled(jobs);
     } catch (error) {
       debug(error);
       process.exit(error.code);
@@ -173,6 +177,61 @@ class MainCommand extends Command {
 
     try {
       yield this.helper.forkNode(lintStaged, ['--config', rcPath, '--quiet'], { cwd });
+    } catch (error) {
+      debug(error);
+      process.exit(error.code);
+    }
+  }
+  *lintBranch({ _, prettier, eslint, quiet, cwd, harmony, sourceSha, targetSha }) {
+    const commonOpts = `${quiet ? '--quiet' : ''}`;
+
+    console.log(sourceSha, targetSha);
+    const diffFiles = getBranchDiffFiles(sourceSha, targetSha, cwd);
+
+    console.log(diffFiles);
+
+    try {
+      const jobs = [];
+
+      if (eslint) {
+        const eslintOptions = parseSubOptions(eslint);
+
+        const eslintExtensions = getEslintExtensions(eslintOptions);
+
+        const formatOpt = ['--format', require.resolve('eslint-formatter-pretty')];
+
+        if (eslintOptions.indexOf('--format') >= 0) {
+          eslintOptions.push(...formatOpt);
+        }
+
+        const files = diffFiles.filter((item) => endsWithArray(item, eslintExtensions));
+        console.log('eslint', files);
+
+        if (files.length > 0) {
+          jobs.push(
+            this.helper.forkNode(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
+              cwd,
+            }),
+          );
+        }
+      }
+
+      if (prettier) {
+        console.log('prettier');
+        const prettierOptions = parseSubOptions(prettier);
+
+        const prettierExtensions = getPrettierExtensions(prettierOptions);
+
+        const files = diffFiles.filter((item) => endsWithArray(item, prettierExtensions));
+        if (files.length > 0) {
+          if (harmony) {
+            jobs.unshift(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          } else {
+            jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+          }
+        }
+      }
+      yield Promise.allSettled(jobs);
     } catch (error) {
       debug(error);
       process.exit(error.code);
