@@ -232,7 +232,7 @@ class MainCommand extends Command {
       }
       const result = yield Promise.allSettled(jobs);
 
-      const rejectItem = result.filter((item) => {
+      const rejectItem = result.find((item) => {
         return item.status === 'rejected';
       });
 
