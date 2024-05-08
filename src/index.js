@@ -60,8 +60,9 @@ class MainCommand extends Command {
 
   *lint({ _, eslint, stylelint, prettier, fix, quiet, cwd, harmony }) {
     if (_.length === 0) {
-      console.log('please specify a path to lint');
-      return;
+      console.error('please specify a path to lint');
+
+      return process.exit(-1);
     }
 
     const commonOpts = [...(fix ? ['--fix'] : []), ...(quiet ? ['--quiet'] : [])];
@@ -188,7 +189,7 @@ class MainCommand extends Command {
     console.log(sourceSha, targetSha);
     const diffFiles = getBranchDiffFiles(sourceSha, targetSha, cwd);
 
-    console.log(diffFiles);
+    console.log('diff files', diffFiles);
 
     try {
       const jobs = [];
@@ -205,7 +206,6 @@ class MainCommand extends Command {
         }
 
         const files = diffFiles.filter((item) => endsWithArray(item, eslintExtensions));
-        console.log('eslint', files);
 
         if (files.length > 0) {
           jobs.push(
@@ -217,7 +217,6 @@ class MainCommand extends Command {
       }
 
       if (prettier) {
-        console.log('prettier');
         const prettierOptions = parseSubOptions(prettier);
 
         const prettierExtensions = getPrettierExtensions(prettierOptions);
@@ -231,7 +230,16 @@ class MainCommand extends Command {
           }
         }
       }
-      yield Promise.allSettled(jobs);
+      const result = yield Promise.allSettled(jobs);
+
+      const rejectItem = result.filter((item) => {
+        return item.status === 'rejected';
+      });
+
+      if (rejectItem) {
+        debug(rejectItem);
+        process.exit(-1);
+      }
     } catch (error) {
       debug(error);
       process.exit(error.code);

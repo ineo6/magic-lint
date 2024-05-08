@@ -52,8 +52,9 @@ function getMixedExtAndRest(eslintExt, prettierExt) {
 }
 
 function getBranchDiffFiles(branchSource, branchTarget, cwd) {
-  const GITDIFF = `git diff ${branchTarget} ${branchSource}  --diff-filter=ACMR --name-only`;
+  const GITDIFF = `git diff ${branchTarget}...${branchSource}  --diff-filter=ACMR --name-only`;
 
+  console.log('execute git diff command:', GITDIFF);
   const diff = execSync(GITDIFF).toString();
 
   const changedPaths = diff.split('\n').filter((path) => path.length > 0);
