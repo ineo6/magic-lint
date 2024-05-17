@@ -51,8 +51,34 @@ function getMixedExtAndRest(eslintExt, prettierExt) {
   };
 }
 
+// check master branch is existed
+function checkBranch(branch) {
+  try {
+    execSync('git rev-parse --verify ' + branch);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function getBranchDiffFiles(branchSource, branchTarget, cwd) {
-  const GITDIFF = `git diff ${branchTarget}...${branchSource}  --diff-filter=ACMR --name-only`;
+  let pureTargetBranch = branchTarget;
+
+  if (pureTargetBranch && pureTargetBranch.indexOf('origin/') === 0) {
+    pureTargetBranch = pureTargetBranch.replace('origin/', '');
+  }
+  const isBranchExisted = checkBranch(pureTargetBranch);
+
+  if (!isBranchExisted) {
+    console.log(`branch ${pureTargetBranch} is not existed`);
+    console.log(' ');
+    console.log('try fetch branch from remote');
+    execSync('git fetch origin ' + pureTargetBranch);
+  } else {
+    console.log(`branch ${pureTargetBranch} is existed`);
+  }
+
+  const GITDIFF = `git diff origin/${pureTargetBranch}...${branchSource}  --diff-filter=ACMR --name-only`;
 
   console.log('execute git diff command:', GITDIFF);
   const diff = execSync(GITDIFF).toString();
