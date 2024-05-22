@@ -78,7 +78,7 @@ function getBranchDiffFiles(branchSource, branchTarget, cwd) {
     console.log(`branch ${pureTargetBranch} is existed`);
   }
 
-  const GITDIFF = `git diff origin/${pureTargetBranch}...${branchSource}  --diff-filter=ACMR --name-only`;
+  const GITDIFF = `git diff origin/${pureTargetBranch}...${branchSource}  --diff-filter=ACMR --name-only ${cwd}`;
 
   console.log('execute git diff command:', GITDIFF);
   const diff = execSync(GITDIFF).toString();
