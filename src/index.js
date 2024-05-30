@@ -1,5 +1,5 @@
 const Command = require('common-bin');
-const { sync: resolveBin } = require('resolve-bin');
+const { sync: resolveBin } = require('./resolve-bin');
 const { join } = require('path');
 let { writeFileSync } = require('fs');
 const debug = require('debug')('magic-lint');
@@ -18,10 +18,6 @@ class MainCommand extends Command {
     super(rawArgv);
 
     this.options = require('./options');
-    this.eslint = resolveBin('eslint');
-    this.stylelint = resolveBin('stylelint');
-    this.prettier = resolveBin('prettier');
-    this.commitlintBin = resolveBin('@commitlint/cli', { executable: 'commitlint' });
 
     this.usage = `
       Usage: magic-lint [options] file.js [file.js] [dir]
@@ -33,8 +29,23 @@ class MainCommand extends Command {
     `;
   }
 
+  initBind(cwd) {
+    this.eslint = resolveBin('eslint', { primaryPath: cwd });
+    this.stylelint = resolveBin('stylelint', { primaryPath: cwd });
+    this.prettier = resolveBin('prettier', { primaryPath: cwd });
+    this.commitlintBin = resolveBin('@commitlint/cli', { executable: 'commitlint' });
+    this.lintStagedBin = resolveBin('lint-staged', { primaryPath: cwd });
+
+    debug('eslint: %s', this.eslint);
+    debug('stylelint: %s', this.stylelint);
+    debug('prettier: %s', this.prettier);
+    debug('commitlintBin: %s', this.commitlintBin);
+    debug('lintStaged: %s', this.lintStagedBin);
+  }
+
   *run(context) {
-    const { staged, commit, mergeDiff } = context.argv;
+    const { staged, commit, mergeDiff, cwd } = context.argv;
+    this.initBind(cwd);
 
     if (commit) {
       yield this.commitlint(context.argv);
@@ -127,7 +138,6 @@ class MainCommand extends Command {
   }
 
   *lintStaged({ prettier, eslint, stylelint, fix, quiet, cwd, harmony }) {
-    const lintStaged = resolveBin('lint-staged');
     const commonOpts = `${fix ? '--fix' : ''} ${quiet ? '--quiet' : ''}`;
 
     const eslintOptions = parseSubOptions(eslint);
@@ -177,7 +187,7 @@ class MainCommand extends Command {
     writeFileSync(rcPath, JSON.stringify(lintstagedrc));
 
     try {
-      yield this.helper.forkNode(lintStaged, ['--config', rcPath, '--quiet'], { cwd });
+      yield this.helper.forkNode(this.lintStagedBin, ['--config', rcPath, '--quiet'], { cwd });
     } catch (error) {
       debug(error);
       process.exit(error.code);
