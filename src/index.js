@@ -73,7 +73,7 @@ class MainCommand extends Command {
     if (_.length === 0) {
       console.error('please specify a path to lint');
 
-      return process.exit(-1);
+      return process.exit(1);
     }
 
     const commonOpts = [...(fix ? ['--fix'] : []), ...(quiet ? ['--quiet'] : [])];
@@ -130,7 +130,16 @@ class MainCommand extends Command {
           }
         }
       }
-      yield Promise.allSettled(jobs);
+      const result = yield Promise.allSettled(jobs);
+
+      const rejectItem = result.find((item) => {
+        return item.status === 'rejected';
+      });
+
+      if (rejectItem) {
+        debug(rejectItem);
+        process.exit(1);
+      }
     } catch (error) {
       debug(error);
       process.exit(error.code);
@@ -248,7 +257,7 @@ class MainCommand extends Command {
 
       if (rejectItem) {
         debug(rejectItem);
-        process.exit(-1);
+        process.exit(1);
       }
     } catch (error) {
       debug(error);
