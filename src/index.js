@@ -3,6 +3,7 @@ const { sync: resolveBin } = require('./resolve-bin');
 const { join } = require('path');
 let { writeFileSync } = require('fs');
 const debug = require('debug')('magic-lint');
+const { forkNodeWithOutput, runJobsWithSequentialOutput } = require('./fork-helper');
 const {
   getPrettierExtensions,
   getMixedExtAndRest,
@@ -82,6 +83,7 @@ class MainCommand extends Command {
 
     try {
       const jobs = [];
+      const labels = [];
 
       if (eslint) {
         const eslintOptions = parseSubOptions(eslint);
@@ -97,10 +99,11 @@ class MainCommand extends Command {
         const files = allFiles.filter((item) => endsWithArray(item, eslintExtensions));
         if (files.length > 0) {
           jobs.push(
-            this.helper.forkNode(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
+            forkNodeWithOutput(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
               cwd,
             }),
           );
+          labels.push('ESLint');
         }
       }
 
@@ -109,10 +112,11 @@ class MainCommand extends Command {
 
         if (files.length > 0) {
           jobs.push(
-            this.helper.forkNode(this.stylelint, [...commonOpts, ...parseSubOptions(stylelint), ...files], {
+            forkNodeWithOutput(this.stylelint, [...commonOpts, ...parseSubOptions(stylelint), ...files], {
               cwd,
             }),
           );
+          labels.push('Stylelint');
         }
       }
 
@@ -124,13 +128,20 @@ class MainCommand extends Command {
         const files = allFiles.filter((item) => endsWithArray(item, prettierExtensions));
         if (files.length > 0) {
           if (harmony) {
-            jobs.unshift(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+            jobs.unshift(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            labels.unshift('Prettier');
           } else {
-            jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+            jobs.push(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            labels.push('Prettier');
           }
         }
       }
-      const result = yield Promise.allSettled(jobs);
+
+      // 使用新的函数处理并行任务,按顺序输出,显示分隔符
+      const result = yield runJobsWithSequentialOutput(jobs, {
+        labels,
+        withSeparator: jobs.length > 1, // 只有多个工具时才显示分隔符
+      });
 
       const rejectItem = result.find((item) => {
         return item.status === 'rejected';
@@ -212,6 +223,7 @@ class MainCommand extends Command {
 
     try {
       const jobs = [];
+      const labels = [];
 
       if (eslint) {
         const eslintOptions = parseSubOptions(eslint);
@@ -228,10 +240,11 @@ class MainCommand extends Command {
 
         if (files.length > 0) {
           jobs.push(
-            this.helper.forkNode(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
+            forkNodeWithOutput(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
               cwd,
             }),
           );
+          labels.push('ESLint');
         }
       }
 
@@ -243,13 +256,20 @@ class MainCommand extends Command {
         const files = diffFiles.filter((item) => endsWithArray(item, prettierExtensions));
         if (files.length > 0) {
           if (harmony) {
-            jobs.unshift(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+            jobs.unshift(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            labels.unshift('Prettier');
           } else {
-            jobs.push(this.helper.forkNode(this.prettier, [...parseSubOptions(prettier), ...files], { cwd }));
+            jobs.push(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            labels.push('Prettier');
           }
         }
       }
-      const result = yield Promise.allSettled(jobs);
+
+      // 使用新的函数处理并行任务,按顺序输出,显示分隔符
+      const result = yield runJobsWithSequentialOutput(jobs, {
+        labels,
+        withSeparator: jobs.length > 1, // 只有多个工具时才显示分隔符
+      });
 
       const rejectItem = result.find((item) => {
         return item.status === 'rejected';
