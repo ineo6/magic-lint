@@ -12,11 +12,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:ineo6/magic-lint.git"
+    "url": "git+ssh://git@github.com/ineo6/magic-lint.git"
   },
   "license": "MIT",
   "author": "ineo6",
-  "bin": "bin/magic-lint.js",
+  "bin": {
+    "magic-lint": "bin/magic-lint.js"
+  },
   "scripts": {
     "lint": "node ./bin/magic-lint --eslint bin/ src/",
     "test": "jest",
