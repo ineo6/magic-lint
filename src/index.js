@@ -221,6 +221,10 @@ class MainCommand extends Command {
 
     console.log('diff files', diffFiles);
 
+    // 保存各工具对应的文件列表，用于生成修复脚本
+    let eslintFiles = [];
+    let prettierFiles = [];
+
     try {
       const jobs = [];
       const labels = [];
@@ -236,11 +240,11 @@ class MainCommand extends Command {
           eslintOptions.push(...formatOpt);
         }
 
-        const files = diffFiles.filter((item) => endsWithArray(item, eslintExtensions));
+        eslintFiles = diffFiles.filter((item) => endsWithArray(item, eslintExtensions));
 
-        if (files.length > 0) {
+        if (eslintFiles.length > 0) {
           jobs.push(
-            forkNodeWithOutput(this.eslint, [...commonOpts, ...eslintOptions, ...files], {
+            forkNodeWithOutput(this.eslint, [...commonOpts, ...eslintOptions, ...eslintFiles], {
               cwd,
             }),
           );
@@ -253,13 +257,13 @@ class MainCommand extends Command {
 
         const prettierExtensions = getPrettierExtensions(prettierOptions);
 
-        const files = diffFiles.filter((item) => endsWithArray(item, prettierExtensions));
-        if (files.length > 0) {
+        prettierFiles = diffFiles.filter((item) => endsWithArray(item, prettierExtensions));
+        if (prettierFiles.length > 0) {
           if (harmony) {
-            jobs.unshift(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            jobs.unshift(forkNodeWithOutput(this.prettier, [...prettierOptions, ...prettierFiles], { cwd }));
             labels.unshift('Prettier');
           } else {
-            jobs.push(forkNodeWithOutput(this.prettier, [...prettierOptions, ...files], { cwd }));
+            jobs.push(forkNodeWithOutput(this.prettier, [...prettierOptions, ...prettierFiles], { cwd }));
             labels.push('Prettier');
           }
         }
@@ -277,11 +281,41 @@ class MainCommand extends Command {
 
       if (rejectItem) {
         debug(rejectItem);
+        // 输出修复脚本
+        this.printFixScript({ eslintFiles, prettierFiles });
         process.exit(1);
       }
     } catch (error) {
       debug(error);
       process.exit(error.code);
+    }
+  }
+
+  /**
+   * 输出可直接执行的修复脚本
+   */
+  printFixScript({ eslintFiles, prettierFiles }) {
+    const hasEslint = eslintFiles.length > 0;
+    const hasPrettier = prettierFiles.length > 0;
+
+    if (!hasEslint && !hasPrettier) {
+      return;
+    }
+
+    console.log('\n' + '═'.repeat(66));
+    console.log('  可执行以下命令进行修复：');
+    console.log('═'.repeat(66) + '\n');
+
+    if (hasEslint) {
+      const filesStr = eslintFiles.join(' \\\n  ');
+      console.log('# ESLint 修复');
+      console.log(`npx eslint --fix \\\n  ${filesStr}\n`);
+    }
+
+    if (hasPrettier) {
+      const filesStr = prettierFiles.join(' \\\n  ');
+      console.log('# Prettier 修复');
+      console.log(`npx prettier --write \\\n  ${filesStr}\n`);
     }
   }
 }
