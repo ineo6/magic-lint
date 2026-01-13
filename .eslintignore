@@ -1,3 +1,4 @@
 config/eslintrc.js
 test/
 src/resolve-bin.js
+settings.local.json

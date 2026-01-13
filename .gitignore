@@ -3,3 +3,4 @@ node_modules
 .stylelintcache
 npm-debug.log
 /.idea/
+settings.local.json
