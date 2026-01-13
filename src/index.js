@@ -221,13 +221,15 @@ class MainCommand extends Command {
 
     console.log('diff files', diffFiles);
 
-    // 保存各工具对应的文件列表，用于生成修复脚本
+    // 保存各工具对应的文件列表
     let eslintFiles = [];
     let prettierFiles = [];
 
     try {
       const jobs = [];
       const labels = [];
+      // 用于获取失败文件列表的静默任务
+      const silentJobs = { eslint: null, prettier: null };
 
       if (eslint) {
         const eslintOptions = parseSubOptions(eslint);
@@ -243,12 +245,16 @@ class MainCommand extends Command {
         eslintFiles = diffFiles.filter((item) => endsWithArray(item, eslintExtensions));
 
         if (eslintFiles.length > 0) {
+          // 主任务：漂亮输出给用户看
           jobs.push(
             forkNodeWithOutput(this.eslint, [...commonOpts, ...eslintOptions, ...eslintFiles], {
               cwd,
             }),
           );
           labels.push('ESLint');
+
+          // 静默任务：用 JSON 格式获取失败文件列表
+          silentJobs.eslint = forkNodeWithOutput(this.eslint, ['--format', 'json', ...eslintFiles], { cwd });
         }
       }
 
@@ -259,6 +265,7 @@ class MainCommand extends Command {
 
         prettierFiles = diffFiles.filter((item) => endsWithArray(item, prettierExtensions));
         if (prettierFiles.length > 0) {
+          // 主任务：输出给用户看
           if (harmony) {
             jobs.unshift(forkNodeWithOutput(this.prettier, [...prettierOptions, ...prettierFiles], { cwd }));
             labels.unshift('Prettier');
@@ -266,14 +273,20 @@ class MainCommand extends Command {
             jobs.push(forkNodeWithOutput(this.prettier, [...prettierOptions, ...prettierFiles], { cwd }));
             labels.push('Prettier');
           }
+
+          // 静默任务：用 --list-different 获取需要格式化的文件列表
+          silentJobs.prettier = forkNodeWithOutput(this.prettier, ['--list-different', ...prettierFiles], { cwd });
         }
       }
 
-      // 使用新的函数处理并行任务,按顺序输出,显示分隔符
-      const result = yield runJobsWithSequentialOutput(jobs, {
-        labels,
-        withSeparator: jobs.length > 1, // 只有多个工具时才显示分隔符
-      });
+      // 并行执行所有任务
+      const [result, silentResults] = yield Promise.all([
+        runJobsWithSequentialOutput(jobs, {
+          labels,
+          withSeparator: jobs.length > 1,
+        }),
+        Promise.allSettled([silentJobs.eslint, silentJobs.prettier].filter(Boolean)),
+      ]);
 
       const rejectItem = result.find((item) => {
         return item.status === 'rejected';
@@ -281,14 +294,66 @@ class MainCommand extends Command {
 
       if (rejectItem) {
         debug(rejectItem);
-        // 输出修复脚本
-        this.printFixScript({ eslintFiles, prettierFiles });
+        // 从静默任务结果中提取有问题的文件
+        const failedFiles = this.extractFailedFilesFromSilentJobs(silentJobs, silentResults);
+        this.printFixScript(failedFiles);
         process.exit(1);
       }
     } catch (error) {
       debug(error);
       process.exit(error.code);
     }
+  }
+
+  /**
+   * 从静默任务结果中提取有问题的文件列表
+   */
+  extractFailedFilesFromSilentJobs(silentJobs, silentResults) {
+    const eslintFiles = [];
+    const prettierFiles = [];
+
+    let resultIndex = 0;
+
+    // 解析 ESLint JSON 输出
+    if (silentJobs.eslint) {
+      const result = silentResults[resultIndex++];
+      // ESLint 有错误时会 reject，stdout 在 reason 中
+      const stdout = result.status === 'rejected' ? result.reason?.stdout : result.value?.stdout;
+
+      if (stdout) {
+        try {
+          const jsonResult = JSON.parse(stdout);
+          jsonResult.forEach((file) => {
+            // 只添加有错误或警告的文件
+            if (file.errorCount > 0 || file.warningCount > 0) {
+              eslintFiles.push(file.filePath);
+            }
+          });
+        } catch (e) {
+          debug('Failed to parse ESLint JSON output:', e);
+        }
+      }
+    }
+
+    // 解析 Prettier --list-different 输出
+    if (silentJobs.prettier) {
+      const result = silentResults[resultIndex++];
+      // Prettier --list-different 有需要格式化的文件时会 reject
+      const stdout = result.status === 'rejected' ? result.reason?.stdout : result.value?.stdout;
+
+      if (stdout) {
+        // --list-different 输出每行一个文件路径
+        const lines = stdout.trim().split('\n');
+        lines.forEach((line) => {
+          const filePath = line.trim();
+          if (filePath && !filePath.startsWith('[')) {
+            prettierFiles.push(filePath);
+          }
+        });
+      }
+    }
+
+    return { eslintFiles, prettierFiles };
   }
 
   /**
