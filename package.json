@@ -1,6 +1,6 @@
 {
   "name": "magic-lint",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "configless lint tool all in one",
   "keywords": [
     "eslint",
